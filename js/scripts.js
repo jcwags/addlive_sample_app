@@ -1,15 +1,18 @@
 /**
- * Copyright (C) SayMama Ltd 2012
+ * This is free and unencumbered software released into the public domain.
+ * For more information, please refer to <http://unlicense.org/>
  *
- * All rights reserved. Any use, copying, modification, distribution and selling
- * of this software and it's documentation for any purposes without authors'
- * written permission is hereby prohibited.
- */
-/**
- * @TODO file description
+ * Contains all functional code providing the Cloudeo Sample Application
+ * functionality
  *
  * @author Tadeusz Kozak
  * @date 25-04-2012 13:01
+ */
+
+/**
+ * =============================================================================
+ * Constants definition
+ * =============================================================================
  */
 
 var UPDATE_DESCR_BASE = 'http://www.cloudeo.tv/plugin/update.';
@@ -81,6 +84,12 @@ var CONNECTION_DESCRIPTOR = {
 
 
 /**
+ * =============================================================================
+ * Platform initialization
+ * =============================================================================
+ */
+
+/**
  * Initializes the plugin by:
  * - setting up cloudeo logging
  * - checking whether it's installed, if so - create CloudeoService
@@ -123,36 +132,15 @@ function initPlugin() {
  * Initialize the UI components.
  */
 function initUI() {
-  $('#webcamsSelect').append($('<option value="none">-- Select --</option> ')).val('none');
-  $('#webcamsSelect').change(function () {
-    var selected = $(this).val();
-    service.setVideoCaptureDevice(CDO.createResponder(function () {
-      window.configuredDevice = selected;
-      startLocalPreview();
-    }), selected);
-  });
+  $('select').append($('<option value="none">-- Select --</option> ')).val('none');
+  $('#camSelect').change(changeCamera);
+  $('#micSelect').change(changeMicrophone);
+  $('#spkSelect').change(changeSpeakers);
   $('#publishAudioChckbx').change(getPublishChckboxChangedHandler(CDO.MEDIA_TYPE_AUDIO));
   $('#publishVideoChckbx').change(getPublishChckboxChangedHandler(CDO.MEDIA_TYPE_VIDEO));
   $('#connectBtn').click(connect);
   $('#disconnectBtn').click(disconnect);
 }
-
-function getPublishChckboxChangedHandler(mediaType) {
-  return function () {
-    if ($(this).is(':checked')) {
-      service.publish(CDO.createResponder(),
-                      connectedScopeId,
-                      mediaType, {})
-    } else {
-      service.unpublish(CDO.createResponder(),
-                        connectedScopeId,
-                        mediaType)
-    }
-
-
-  };
-}
-
 /**
  * Further configures, the plugin - creates service and initializes devices.
  */
@@ -187,80 +175,117 @@ function startPlugin() {
   plugin.createService(CDO.createResponder(function (result) {
     service = /**CDO.CloudeoService*/ result;
     service.addServiceListener(CDO.createResponder(), listener);
-    initVideo();
-    initAudio();
+    initDevices();
   }));
 }
 
+/**
+ * =============================================================================
+ * Devices handling
+ * =============================================================================
+ */
 
 /**
  * Initializes audio subsystem:
  * - fetches microphones and speakers
  * - selects first mic and fisrt speaker to be used by the Cloudeo Service
  */
-function initAudio() {
+function initDevices() {
   log_d("Initializing the audio subsystem");
-  log_d("Getting audio capture devices");
 
 //  Initialize microphones
+  log_d("Getting audio capture devices");
   service.getAudioCaptureDeviceNames(
-      CDO.createResponder(function (devs) {
-        log_d("Got audio capture devices: " + JSON.stringify(devs));
-        log_d("Using audio capture device: " + devs[0]);
-        if (devs.length > 0) {
-          service.setAudioCaptureDevice(CDO.createResponder(function () {
-            log_d("Audio capture device configured");
-          }), 0);
-        }
-      }));
-  log_d("Getting audio output devices");
+      CDO.createResponder(onAudioCaptureDeviceNames));
 
 //  Initialize speakers
+  log_d("Getting audio output devices");
   service.getAudioOutputDeviceNames(
-      CDO.createResponder(function (devs) {
-        log_d("Got audio output devices: " + JSON.stringify(devs));
-        log_d("Using audio output device: " + devs[0]);
+      CDO.createResponder(onAudioOutputDeviceNames));
 
-        if (devs.length > 0) {
-          service.setAudioOutputDevice(CDO.createResponder(
-              function () {
-                log_d("Audio output device configured");
-              }
-          ), 0);
+//  Initialize cameras
+  log_d("Getting video capture devices");
+  service.getVideoCaptureDeviceNames(
+      CDO.createResponder(onVideoCaptureDeviceNames));
+}
+
+function onAudioCaptureDeviceNames(devs) {
+  log_d("Got audio capture devices: " + JSON.stringify(devs));
+  log_d("Using audio capture device: " + devs[0]);
+  window.configuredMic = fillDevicesSelect('#micSelect', devs);
+  if (devs.length > 0) {
+    service.setAudioCaptureDevice(CDO.createResponder(function () {
+      log_d("Audio capture device configured");
+      $('#micSelect').val(window.configuredMic);
+    }), window.configuredMic);
+  }
+}
+
+function onAudioOutputDeviceNames(devs) {
+  log_d("Got audio output devices: " + JSON.stringify(devs));
+  log_d("Using audio output device: " + devs[0]);
+  window.configuredSpk = fillDevicesSelect('#spkSelect', devs);
+  if (devs.length > 0) {
+    service.setAudioOutputDevice(CDO.createResponder(
+        function () {
+          log_d("Audio output device configured");
+          $('#spkSelect').val(window.configuredSpk);
         }
-      }));
+    ), window.configuredSpk);
+  }
+}
+
+
+function onVideoCaptureDeviceNames(devs) {
+  log_d("Got video capture devices: " + JSON.stringify(devs));
+  var dev = fillDevicesSelect('#camSelect', devs);
+  if (dev) {
+    log_d("Using video capture device: " + JSON.stringify(devs[dev]));
+    window.configuredCam = dev;
+    service.setVideoCaptureDevice(CDO.createResponder(startLocalPreview), dev);
+  } else {
+    log_e("None video capture devices installed.");
+  }
+}
+
+function fillDevicesSelect(selectSelector, devs) {
+  var dev;
+  var $select = $(selectSelector);
+  $.each(devs, function (k, v) {
+    dev = k;
+    $select.append($('<option value="' + k + '">' + v + '</option> '));
+  });
+  return dev;
+}
+
+
+function changeCamera() {
+  var selected = $(this).val();
+  service.setVideoCaptureDevice(CDO.createResponder(function () {
+    window.configuredCam = selected;
+    startLocalPreview();
+  }), selected);
+}
+
+function changeMicrophone() {
+  var selected = $(this).val();
+  service.setAudioCaptureDevice(CDO.createResponder(function () {
+    window.configuredMic = selected;
+  }), selected);
+}
+
+function changeSpeakers() {
+  var selected = $(this).val();
+  service.setAudioOutputDevice(CDO.createResponder(function () {
+    window.configuredSpk = selected;
+  }), selected);
 }
 
 /**
- * Initializes video devices:
- * - fetches device list
- * - fills the web cam selection combo
- * - selects last device from the list
- * - configures change event listener on the webcam combo, to allow switching
- *   between devices.
+ * =============================================================================
+ * Local preview management.
+ * =============================================================================
  */
-function initVideo() {
-  log_d("Initializing the video subsystem");
-
-  var setVideoDev = function (devs) {
-    log_d("Got video capture devices: " + JSON.stringify(devs));
-    var dev = '';
-    $.each(devs, function (k, v) {
-      dev = k;
-      $('#webcamsSelect').append($('<option value="' + k + '">' + v + '</option> '));
-    });
-    if (dev) {
-      log_d("Using video capture device: " + JSON.stringify(devs[dev]));
-      window.configuredDevice = dev;
-      service.setVideoCaptureDevice(CDO.createResponder(startLocalPreview), dev);
-    } else {
-      log_e("None video capture devices installed.");
-    }
-  };
-  log_d("Getting video capture devices");
-  service.getVideoCaptureDeviceNames(CDO.createResponder(setVideoDev));
-
-}
 
 /**
  * Starts local preview of the user:
@@ -270,7 +295,7 @@ function initVideo() {
  */
 function startLocalPreview() {
   log_d("Starting local video");
-  $('#webcamsSelect').val(window.configuredDevice);
+  $('#camSelect').val(window.configuredCam);
   var succHandler = function (sinkId) {
     window.localPreviewStarted = true;
     log_d("Local video started. Setting up renderer");
@@ -280,6 +305,12 @@ function startLocalPreview() {
   };
   service.startLocalVideo(CDO.createResponder(succHandler));
 }
+
+/**
+ * =============================================================================
+ * Installation, updating
+ * =============================================================================
+ */
 
 /**
  * Tries to perform plugin self-update.
@@ -338,9 +369,11 @@ function pollForPlugin() {
   plugin.startPolling(startPlugin);
 }
 
+
 /**
- * =====================================================================
- * =====================================================================
+ * =============================================================================
+ * Connection and streaming management.
+ * =============================================================================
  */
 
 function getConnectionUrl(scopeId) {
@@ -387,6 +420,27 @@ function disconnect() {
   service.disconnect(CDO.createResponder(succHandler), connectedScopeId);
 }
 
+function getPublishChckboxChangedHandler(mediaType) {
+  return function () {
+    if ($(this).is(':checked')) {
+      service.publish(CDO.createResponder(),
+                      connectedScopeId,
+                      mediaType, {})
+    } else {
+      service.unpublish(CDO.createResponder(),
+                        connectedScopeId,
+                        mediaType)
+    }
+  };
+}
+
+
+/**
+ * =============================================================================
+ * Platform notifications handling.
+ * =============================================================================
+ */
+
 /**
  *
  * New user handler - renders remote user's video feed.
@@ -410,6 +464,12 @@ function userGone(details) {
   $('#userFeed' + details.userId).html('').remove();
 }
 
+
+/**
+ * =============================================================================
+ * Logging.
+ * =============================================================================
+ */
 
 /**
  * Logging
