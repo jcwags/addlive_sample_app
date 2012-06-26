@@ -48,3 +48,6 @@
     list-style: none;
 }
 
+#installBtn, #disconnectBtn {
+    display: none;
+}

@@ -13,7 +13,7 @@
   </script>
   <!--Minified version of the SDK: -->
   <!--<script type="text/javascript"-->
-          <!--src="http://www.cloudeo.tv/plugin/sdk/cloudeo-sdk.min.js">-->
+  <!--src="http://www.cloudeo.tv/plugin/sdk/cloudeo-sdk.min.js">-->
   <!--</script>-->
   <script type="text/javascript">
     $(initPlugin);
@@ -37,10 +37,9 @@
   <div class="clearer"></div>
   <div>
     Room id: <input id="roomId" type="text"/>
-    <a class="btn btn-primary" onclick="connect($('#roomId').val())">Connect</a>
-    <a class="btn" onclick="disconnect()">Disconnect</a>
-    <a id="installButton" class="btn btn-primary" href="#"
-       style="display: none;">Install plug-in</a>
+    <a id="connectBtn" class="btn btn-primary">Connect</a>
+    <a id="disconnectBtn" class="btn">Disconnect</a>
+    <a id="installBtn" class="btn btn-primary" href="#">Install plug-in</a>
   </div>
   <div>
     Webcam: <select id="webcamsSelect"></select>
@@ -52,7 +51,7 @@
     <input id="publishAudioChckbx" type="checkbox"/> Publish audio stream
   </div>
   <h2>
-    Logd
+    Logs:
   </h2>
   <ul id="logContainer"></ul>
 </div>

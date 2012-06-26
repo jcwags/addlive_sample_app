@@ -43,6 +43,8 @@ var RENDER_TMPL = '<li id="userFeed#" class="remote-feed"></li>';
  */
 var RENDER_LOCAL_TMPL = '<li id="userFeed#"></li>';
 
+var STREAMER_URL_BASE = "67.228.150.188:704/";
+
 /**
  * Id of scope to which user is connected.
  */
@@ -71,7 +73,6 @@ var CONNECTION_DESCRIPTOR = {
   },
   autopublishVideo:true,
   autopublishAudio:true,
-  url:"67.228.150.188:704/",
   publishAudio:true,
   publishVideo:true,
   "token":"1"
@@ -132,6 +133,8 @@ function initUI() {
   });
   $('#publishAudioChckbx').change(getPublishChckboxChangedHandler(CDO.MEDIA_TYPE_AUDIO));
   $('#publishVideoChckbx').change(getPublishChckboxChangedHandler(CDO.MEDIA_TYPE_VIDEO));
+  $('#connectBtn').click(connect);
+  $('#disconnectBtn').click(disconnect);
 }
 
 function getPublishChckboxChangedHandler(mediaType) {
@@ -155,7 +158,7 @@ function getPublishChckboxChangedHandler(mediaType) {
  */
 function startPlugin() {
   log_d("Starting the plug-in");
-  $('#installButton').hide();
+  $('#installBtn').hide();
 //  Create and configure listener
   var listener = new CDO.CloudeoServiceListener();
   listener.onUserEvent = function (/**CDO.UserStateChangedEvent*/e) {
@@ -165,13 +168,13 @@ function startPlugin() {
       userGone(e);
     }
   };
-  listener.onMediaStreamEvent = function(e){
+  listener.onMediaStreamEvent = function (e) {
     log_d("Got new media stream event: " + JSON.stringify(e));
-    if(e.mediaType !== CDO.MEDIA_TYPE_VIDEO) {
+    if (e.mediaType !== CDO.MEDIA_TYPE_VIDEO) {
 //      Ignore other event types.
       return;
     }
-    if(e.videoPublished) {
+    if (e.videoPublished) {
 //      User just published the video feed
       newUser(e);
     } else {
@@ -324,7 +327,7 @@ function tryUpdatePlugin() {
 function showInstallFrame() {
   log_d("Plugin not installed. Use install plugin button. Refresh the page when complete");
   CDO.getInstallerURL(CDO.createResponder(function (url) {
-    $('#installButton').
+    $('#installBtn').
         attr('href', url).
         show().
         click(pollForPlugin);
@@ -340,25 +343,34 @@ function pollForPlugin() {
  * =====================================================================
  */
 
+function getConnectionUrl(scopeId) {
+  return STREAMER_URL_BASE + scopeId;
+}
+
 /**
  * Connects to scope with given id
  *
  * @param scopeId
  */
-function connect(scopeId) {
+function connect() {
+  var scopeId = $('#roomId').val();
   log_d("Trying to connect to media scope with id: " + scopeId);
   var connDescr = $.extend({}, CONNECTION_DESCRIPTOR);
   connDescr.autopublishAudio = $('#publishAudioChckbx').is(':checked');
   connDescr.autopublishVideo = $('#publishVideoChckbx').is(':checked');
   connDescr.token = (Math.floor(Math.random() * 10000)) + '';
-  connDescr.url += scopeId;
+  connDescr.url = getConnectionUrl(scopeId);
   var succHandler = function () {
     log_d("Successfully connected");
     connectedScopeId = scopeId;
+    $('#disconnectBtn').show();
+    $('#connectBtn').hide();
   };
   var errHandler = function (code, msg) {
     log_e("Failed to connect due to: " + msg + " (" + code + ")");
+    $('#connectBtn').click(connect).removeClass('disabled');
   };
+  $('#connectBtn').unbind('click').addClass('disabled');
   service.connect(CDO.createResponder(succHandler, errHandler), connDescr);
 }
 
@@ -366,9 +378,13 @@ function connect(scopeId) {
  * Terminates previously established connection.
  */
 function disconnect() {
-  service.disconnect(CDO.createResponder(function () {
+  var succHandler = function () {
     $('.remote-feed').remove();
-  }), connectedScopeId);
+    $('#disconnectBtn').hide();
+    $('#connectBtn').show().click(connect).removeClass('disabled');
+
+  };
+  service.disconnect(CDO.createResponder(succHandler), connectedScopeId);
 }
 
 /**
