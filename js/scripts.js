@@ -97,8 +97,45 @@ var CONNECTION_DESCRIPTOR = {
  */
 function initPlugin() {
   initUI();
+  initLogging();
+  initCloudeoPlatform();
+}
 
-//  Setup logging using our handler
+function initCloudeoPlatform() {
+  log_d("Initializing the Cloudeo platform");
+
+  var initListener = new CDO.PlatformInitListener();
+  initListener.onInitProgressChanged = function (e) {
+    log_d("Platform init progress: " + e.progress);
+  };
+
+  initListener.onInitStateChanged = function (e) {
+    switch (e.state) {
+      case CDO.InitState.ERROR:
+        log_e("Failed to initialize the Cloudeo SDK");
+        log_e("Reason: " + e.errMessage + ' (' + e.errCode + ')');
+        break;
+      case CDO.InitState.INITIALIZED:
+        startPlugin();
+        break;
+      case CDO.InitState.INSTALLATION_REQUIRED:
+        showInstallButton(e.installerURL);
+        break;
+      case CDO.InitState.INSTALLATION_COMPLETE:
+        hideInstallButton(e.installerURL);
+        break;
+      case CDO.InitState.BROWSER_RESTART_REQUIRED:
+        log_d("Please restart your browser in order to complete platform auto-update");
+        break;
+      default:
+        log_e("Got unsupported init state: " + e.state);
+    }
+  };
+  CDO.initPlatform(initListener);
+
+}
+
+function initLogging() {
   CDO.initLogging(function (lev, msg) {
     switch (lev) {
       case "DEBUG":
@@ -114,18 +151,7 @@ function initPlugin() {
         log_e("Got unsupported log level: " + lev + ". Message: " + msg);
     }
   }, true);
-  log_d("Initializing the plug-in");
 
-//  Try to load the plugin
-  plugin = new CDO.CloudeoPlugin(PLUGIN_CONTAINER_ID);
-  var loadStatus = plugin.loadPlugin();
-  if (loadStatus) {
-//    Plugin is installed
-    tryUpdatePlugin();
-  } else {
-//    Plugin requires installation
-    showInstallFrame();
-  }
 }
 
 /**
@@ -172,11 +198,8 @@ function startPlugin() {
   };
 
 //  Create the CloudeoService
-  plugin.createService(CDO.createResponder(function (result) {
-    service = /**CDO.CloudeoService*/ result;
-    service.addServiceListener(CDO.createResponder(), listener);
-    initDevices();
-  }));
+  CDO.getService().addServiceListener(CDO.createResponder(), listener);
+  initDevices();
 }
 
 /**
@@ -195,89 +218,78 @@ function initDevices() {
 
 //  Initialize microphones
   log_d("Getting audio capture devices");
-  service.getAudioCaptureDeviceNames(
+  CDO.getService().getAudioCaptureDeviceNames(
       CDO.createResponder(onAudioCaptureDeviceNames));
 
 //  Initialize speakers
   log_d("Getting audio output devices");
-  service.getAudioOutputDeviceNames(
+  CDO.getService().getAudioOutputDeviceNames(
       CDO.createResponder(onAudioOutputDeviceNames));
 
 //  Initialize cameras
   log_d("Getting video capture devices");
-  service.getVideoCaptureDeviceNames(
+  CDO.getService().getVideoCaptureDeviceNames(
       CDO.createResponder(onVideoCaptureDeviceNames));
 }
 
 function onAudioCaptureDeviceNames(devs) {
-  log_d("Got audio capture devices: " + JSON.stringify(devs));
-  log_d("Using audio capture device: " + devs[0]);
-  window.configuredMic = fillDevicesSelect('#micSelect', devs);
-  if (devs.length > 0) {
-    service.setAudioCaptureDevice(CDO.createResponder(function () {
-      log_d("Audio capture device configured");
-      $('#micSelect').val(window.configuredMic);
-    }), window.configuredMic);
-  }
+  log_d("Got Audio capture devices list (" + devs.length + ')');
+  CDO.getService().getAudioCaptureDevice(CDO.createResponder(function (dev) {
+    log_d("Using audio capture device :" + devs[dev]);
+    fillDevicesSelect('#micSelect', devs, dev);
+  }));
+
 }
 
 function onAudioOutputDeviceNames(devs) {
-  log_d("Got audio output devices: " + JSON.stringify(devs));
-  log_d("Using audio output device: " + devs[0]);
-  window.configuredSpk = fillDevicesSelect('#spkSelect', devs);
-  if (devs.length > 0) {
-    service.setAudioOutputDevice(CDO.createResponder(
-        function () {
-          log_d("Audio output device configured");
-          $('#spkSelect').val(window.configuredSpk);
-        }
-    ), window.configuredSpk);
-  }
+  log_d("Got Audio output devices list (" + devs.length + ')');
+  CDO.getService().getAudioOutputDevice(CDO.createResponder(function (dev) {
+    log_d("Using audio output device :" + devs[dev]);
+    fillDevicesSelect('#spkSelect', devs, dev);
+  }));
 }
-
 
 function onVideoCaptureDeviceNames(devs) {
-  log_d("Got video capture devices: " + JSON.stringify(devs));
-  var dev = fillDevicesSelect('#camSelect', devs);
-  if (dev) {
-    log_d("Using video capture device: " + JSON.stringify(devs[dev]));
-    window.configuredCam = dev;
-    service.setVideoCaptureDevice(CDO.createResponder(startLocalPreview), dev);
-  } else {
-    log_e("None video capture devices installed.");
-  }
+  log_d("Got video capture devices.");
+  CDO.getService().getVideoCaptureDevice(CDO.createResponder(function (dev) {
+    log_d("Using video capture device: " + devs[dev]);
+    fillDevicesSelect('#camSelect', devs, dev);
+    if (dev) {
+      startLocalPreview();
+    }
+  }));
 }
 
-function fillDevicesSelect(selectSelector, devs) {
+function fillDevicesSelect(selectSelector, devs, selectedDevice) {
   var dev;
   var $select = $(selectSelector);
   $.each(devs, function (k, v) {
     dev = k;
     $select.append($('<option value="' + k + '">' + v + '</option> '));
   });
-  return dev;
+  $select.val(selectedDevice);
 }
 
 
 function changeCamera() {
   var selected = $(this).val();
-  service.setVideoCaptureDevice(CDO.createResponder(function () {
-    window.configuredCam = selected;
+  CDO.getService().setVideoCaptureDevice(CDO.createResponder(function () {
+    $('#camSelect').val(selected);
     startLocalPreview();
   }), selected);
 }
 
 function changeMicrophone() {
   var selected = $(this).val();
-  service.setAudioCaptureDevice(CDO.createResponder(function () {
-    window.configuredMic = selected;
+  CDO.getService().setAudioCaptureDevice(CDO.createResponder(function () {
+    $('#micSelect').val(selected);
   }), selected);
 }
 
 function changeSpeakers() {
   var selected = $(this).val();
-  service.setAudioOutputDevice(CDO.createResponder(function () {
-    window.configuredSpk = selected;
+  CDO.getService().setAudioOutputDevice(CDO.createResponder(function () {
+    $('#micSelect').val(selected);
   }), selected);
 }
 
@@ -295,15 +307,18 @@ function changeSpeakers() {
  */
 function startLocalPreview() {
   log_d("Starting local video");
-  $('#camSelect').val(window.configuredCam);
   var succHandler = function (sinkId) {
-    window.localPreviewStarted = true;
     log_d("Local video started. Setting up renderer");
     var rendererContent = RENDER_LOCAL_TMPL.replace('#', '_local');
     $('.feeds-wrapper').append($(rendererContent));
-    CDO.renderSink(sinkId, 'userFeed_local');
+    CDO.renderSink({
+                     sinkId:sinkId,
+                     containerId:'userFeed_local',
+                     mirror:true,
+                     windowless:true
+                   });
   };
-  service.startLocalVideo(CDO.createResponder(succHandler));
+  CDO.getService().startLocalVideo(CDO.createResponder(succHandler));
 }
 
 /**
@@ -313,62 +328,17 @@ function startLocalPreview() {
  */
 
 /**
- * Tries to perform plugin self-update.
- */
-function tryUpdatePlugin() {
-  var updateListener = {};
-  updateListener.updateProgress = function (value) {
-    log_d("Got update progress: " + value);
-  };
-
-  updateListener.updateStatus = function (eventType, errCode, errMessage) {
-    log_d("Got update event type: " + eventType);
-    switch (eventType) {
-      case 'UPDATING':
-//          Update process started
-        break;
-      case 'UPDATED':
-//        Plugin updated
-        startPlugin();
-        break;
-      //noinspection FallthroughInSwitchStatementJS
-      case 'UP_TO_DATE':
-//        Plugin up to date - nothing needs to be done
-        startPlugin();
-        break;
-      case 'UPDATED_RESTART':
-//        Plugin updated successfully but browser needs to be restarted
-        break;
-      case 'NEEDS_MANUAL_UPDATE':
-//        Plugin needs reinstallation
-        break;
-      case 'ERROR':
-//        Failed to update the plugin.
-        break;
-      default:
-        break;
-    }
-  };
-  plugin.update(updateListener)
-}
-
-/**
  * Shows install button in case the plugin isn't installed.
  */
-function showInstallFrame() {
-  log_d("Plugin not installed. Use install plugin button. Refresh the page when complete");
-  CDO.getInstallerURL(CDO.createResponder(function (url) {
-    $('#installBtn').
-        attr('href', url).
-        show().
-        click(pollForPlugin);
-  }));
+function showInstallButton(url) {
+  log_d("Plugin not installed.");
+  $('#installBtn').attr('href', url).show();
 }
 
-function pollForPlugin() {
-  plugin.startPolling(startPlugin);
+function hideInstallButton() {
+  log_d("Plugin not installed.");
+  $('#installBtn').hide();
 }
-
 
 /**
  * =============================================================================
@@ -404,7 +374,7 @@ function connect() {
     $('#connectBtn').click(connect).removeClass('disabled');
   };
   $('#connectBtn').unbind('click').addClass('disabled');
-  service.connect(CDO.createResponder(succHandler, errHandler), connDescr);
+  CDO.getService().connect(CDO.createResponder(succHandler, errHandler), connDescr);
 }
 
 /**
@@ -417,19 +387,19 @@ function disconnect() {
     $('#connectBtn').show().click(connect).removeClass('disabled');
 
   };
-  service.disconnect(CDO.createResponder(succHandler), connectedScopeId);
+  CDO.getService().disconnect(CDO.createResponder(succHandler), connectedScopeId);
 }
 
 function getPublishChckboxChangedHandler(mediaType) {
   return function () {
     if ($(this).is(':checked')) {
-      service.publish(CDO.createResponder(),
-                      connectedScopeId,
-                      mediaType, {})
+      CDO.getService().publish(CDO.createResponder(),
+                               connectedScopeId,
+                               mediaType, {})
     } else {
-      service.unpublish(CDO.createResponder(),
-                        connectedScopeId,
-                        mediaType)
+      CDO.getService().unpublish(CDO.createResponder(),
+                                 connectedScopeId,
+                                 mediaType)
     }
   };
 }
@@ -451,7 +421,12 @@ function newUser(details) {
   if (details.videoPublished) {
     var rendererContent = RENDER_TMPL.replace('#', details.userId);
     $('.feeds-wrapper').append($(rendererContent));
-    CDO.renderSink(details.videoSinkId, 'userFeed' + details.userId);
+    CDO.renderSink({
+                     sinkId:details.videoSinkId,
+                     containerId:'userFeed' + details.userId,
+                     mirror:false,
+                     windowless:true
+                   });
   }
 }
 
