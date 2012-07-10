@@ -15,9 +15,8 @@
  * =============================================================================
  */
 
-var UPDATE_DESCR_BASE = 'http://www.cloudeo.tv/plugin/update.';
 
-var PLUGIN_CONTAINER_ID = 'pluginContainer';
+var CLIENT_ID = 123;
 
 /**
  *
@@ -40,6 +39,7 @@ var service;
  */
 var RENDER_TMPL = '<li id="userFeed#" class="remote-feed"></li>';
 
+//noinspection StringLiteralBreaksHTMLJS
 /**
  * Template for rendering local user video feed.
  * @type {String}
@@ -122,7 +122,7 @@ function initCloudeoPlatform() {
         showInstallButton(e.installerURL);
         break;
       case CDO.InitState.INSTALLATION_COMPLETE:
-        hideInstallButton(e.installerURL);
+        hideInstallButton();
         break;
       case CDO.InitState.BROWSER_RESTART_REQUIRED:
         log_d("Please restart your browser in order to complete platform auto-update");
@@ -131,7 +131,7 @@ function initCloudeoPlatform() {
         log_e("Got unsupported init state: " + e.state);
     }
   };
-  CDO.initPlatform(initListener);
+  CDO.initPlatform(initListener, CLIENT_ID);
 
 }
 
@@ -158,6 +158,7 @@ function initLogging() {
  * Initialize the UI components.
  */
 function initUI() {
+  //noinspection StringLiteralBreaksHTMLJS
   $('select').append($('<option value="none">-- Select --</option> ')).val('none');
   $('#camSelect').change(changeCamera);
   $('#micSelect').change(changeMicrophone);
@@ -265,6 +266,7 @@ function fillDevicesSelect(selectSelector, devs, selectedDevice) {
   var $select = $(selectSelector);
   $.each(devs, function (k, v) {
     dev = k;
+    //noinspection StringLiteralBreaksHTMLJS
     $select.append($('<option value="' + k + '">' + v + '</option> '));
   });
   $select.val(selectedDevice);
@@ -362,7 +364,8 @@ function connect() {
   connDescr.autopublishAudio = $('#publishAudioChckbx').is(':checked');
   connDescr.autopublishVideo = $('#publishVideoChckbx').is(':checked');
   connDescr.token = (Math.floor(Math.random() * 10000)) + '';
-  connDescr.url = getConnectionUrl(scopeId);
+//  connDescr.url = getConnectionUrl(scopeId);
+  connDescr.scopeId = scopeId;
   var succHandler = function () {
     log_d("Successfully connected");
     connectedScopeId = scopeId;
