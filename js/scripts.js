@@ -46,8 +46,6 @@ var RENDER_TMPL = '<li id="userFeed#" class="remote-feed"></li>';
  */
 var RENDER_LOCAL_TMPL = '<li id="userFeed#"></li>';
 
-var STREAMER_URL_BASE = "67.228.150.188:704/";
-
 /**
  * Id of scope to which user is connected.
  */
@@ -348,9 +346,6 @@ function hideInstallButton() {
  * =============================================================================
  */
 
-function getConnectionUrl(scopeId) {
-  return STREAMER_URL_BASE + scopeId;
-}
 
 /**
  * Connects to scope with given id
@@ -364,9 +359,9 @@ function connect() {
   connDescr.autopublishAudio = $('#publishAudioChckbx').is(':checked');
   connDescr.autopublishVideo = $('#publishVideoChckbx').is(':checked');
   connDescr.token = (Math.floor(Math.random() * 10000)) + '';
-//  connDescr.url = getConnectionUrl(scopeId);
   connDescr.scopeId = scopeId;
-  var succHandler = function () {
+  var succHandler = function (mediaConnection) {
+    window.mediaConnection = mediaConnection;
     log_d("Successfully connected");
     connectedScopeId = scopeId;
     $('#disconnectBtn').show();
@@ -390,18 +385,17 @@ function disconnect() {
     $('#connectBtn').show().click(connect).removeClass('disabled');
 
   };
-  CDO.getService().disconnect(CDO.createResponder(succHandler), connectedScopeId);
+  mediaConnection.disconnect();
+//  CDO.getService().disconnect(CDO.createResponder(succHandler), connectedScopeId);
 }
 
 function getPublishChckboxChangedHandler(mediaType) {
   return function () {
     if ($(this).is(':checked')) {
-      CDO.getService().publish(CDO.createResponder(),
-                               connectedScopeId,
+      mediaConnection.publish(CDO.createResponder(),
                                mediaType, {})
     } else {
-      CDO.getService().unpublish(CDO.createResponder(),
-                                 connectedScopeId,
+      mediaConnection.unpublish(CDO.createResponder(),
                                  mediaType)
     }
   };
