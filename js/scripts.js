@@ -383,10 +383,8 @@ function disconnect() {
     $('.remote-feed').remove();
     $('#disconnectBtn').hide();
     $('#connectBtn').show().click(connect).removeClass('disabled');
-
   };
-  mediaConnection.disconnect();
-//  CDO.getService().disconnect(CDO.createResponder(succHandler), connectedScopeId);
+  mediaConnection.disconnect(CDO.createResponder(succHandler));
 }
 
 function getPublishChckboxChangedHandler(mediaType) {
