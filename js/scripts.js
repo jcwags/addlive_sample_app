@@ -16,7 +16,7 @@
  */
 
 
-var CLIENT_ID = 123;
+var CLIENT_ID = 1;
 
 /**
  *
@@ -129,8 +129,16 @@ function initCloudeoPlatform() {
         log_e("Got unsupported init state: " + e.state);
     }
   };
-  CDO.initPlatform(initListener, CLIENT_ID);
 
+  CDO.initPlatform(initListener,
+                   {
+                     clientId:CLIENT_ID,
+                     pluginPollFrequency:1000
+                   }
+  );
+
+//  or just
+//  CDO.initPlatform(initListener, CLIENT_ID);
 }
 
 function initLogging() {
@@ -391,10 +399,10 @@ function getPublishChckboxChangedHandler(mediaType) {
   return function () {
     if ($(this).is(':checked')) {
       mediaConnection.publish(CDO.createResponder(),
-                               mediaType, {})
+                              mediaType, {})
     } else {
       mediaConnection.unpublish(CDO.createResponder(),
-                                 mediaType)
+                                mediaType)
     }
   };
 }
@@ -456,3 +464,5 @@ function log_e(msg) {
   $('<li class="error">' + msg + '</li>').appendTo($('#logContainer'))
 
 }
+
+$(initPlugin);
