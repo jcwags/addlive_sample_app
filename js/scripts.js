@@ -240,7 +240,7 @@ function initDevices() {
 }
 
 function onAudioCaptureDeviceNames(devs) {
-  log_d("Got Audio capture devices list (" + devs.length + ')');
+  log_d("Got Audio capture devices: " + JSON.stringify(devs));
   CDO.getService().getAudioCaptureDevice(CDO.createResponder(function (dev) {
     log_d("Using audio capture device :" + devs[dev]);
     fillDevicesSelect('#micSelect', devs, dev);
@@ -249,7 +249,7 @@ function onAudioCaptureDeviceNames(devs) {
 }
 
 function onAudioOutputDeviceNames(devs) {
-  log_d("Got Audio output devices list (" + devs.length + ')');
+  log_d("Got Audio output devices: " + JSON.stringify(devs));
   CDO.getService().getAudioOutputDevice(CDO.createResponder(function (dev) {
     log_d("Using audio output device :" + devs[dev]);
     fillDevicesSelect('#spkSelect', devs, dev);
@@ -257,7 +257,7 @@ function onAudioOutputDeviceNames(devs) {
 }
 
 function onVideoCaptureDeviceNames(devs) {
-  log_d("Got video capture devices.");
+  log_d("Got video capture devices: " + JSON.stringify(devs));
   CDO.getService().getVideoCaptureDevice(CDO.createResponder(function (dev) {
     log_d("Using video capture device: " + devs[dev]);
     fillDevicesSelect('#camSelect', devs, dev);
