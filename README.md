@@ -1,6 +1,6 @@
 Cloudeo Sample App
 ==================
 
-Sample application providing showcase for Cloudeo Plug-In API.
+Sample application providing showcase for AddLive JavaScript SDK.
 
-Read more on http://www.cloudeo.tv
+Read more on http://www.addlive.com
