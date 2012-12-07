@@ -1,4 +1,4 @@
-Cloudeo Sample App
+AddLive Sample App
 ==================
 
 Sample application providing showcase for AddLive JavaScript SDK.
